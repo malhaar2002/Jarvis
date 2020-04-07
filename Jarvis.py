@@ -1,21 +1,31 @@
+from __future__ import print_function
+import datetime
+import pickle
+import os.path
+from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
 import os
 import time
-import playsound
 import speech_recognition as sr
-from gtts import gTTS
+import pyttsx3
 from selenium import webdriver
-from datetime import datetime
 import subprocess
+import cv2
+from pprint import pprint
+import requests
 
-chromedriver = r"C:\Users\Malhaar\Downloads\chromedriver_win32\chromedriver.exe"
-driver = webdriver.Chrome(chromedriver)
+SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
+MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
+DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+DAYS_EXTENSIONS = ['rd', 'th', 'st']
 
 
-def speak(text, file = "ques.mp3"):
-    tts = gTTS(text = text, lang = "en-US")
-    filename = file
-    tts.save(filename)
-    playsound.playsound(filename)
+def speak(text):
+    engine = pyttsx3.init()
+    engine.setProperty('rate', 160)
+    engine.say(text)
+    engine.runAndWait()
 
 
 def get_audio():
@@ -38,6 +48,9 @@ def youtube():
     speak("Which song do you want me to play?")
     search_string = get_audio()
 
+    chromedriver = r"C:\Users\Malhaar\Downloads\chromedriver_win32\chromedriver.exe"
+    driver = webdriver.Chrome(chromedriver)
+
     def launch():
         driver.get("https://www.youtube.com/")
         time.sleep(0.5)
@@ -51,13 +64,14 @@ def youtube():
         driver.find_element_by_xpath("/html/body/ytd-app/div/ytd-page-manager/ytd-search/div[1]/ytd-two-column-search-results-renderer/div/ytd-section-list-renderer/div[2]/ytd-item-section-renderer/div[3]/ytd-video-renderer[1]/div[1]/ytd-thumbnail/a").click()
 
     def skip_ad():
-        try:
-            driver.find_element_by_xpath("/html/body/ytd-app/div/ytd-page-manager/ytd-watch-flexy/div[4]/div[1]/div/div[1]/div/div/div/ytd-player/div/div/div[15]/div/div[3]/div/div[2]/span/button/div").click()
-        except:
+        while True:
             try:
-                driver.find_element_by_xpath("/html/body/ytd-app/div/ytd-page-manager/ytd-watch-flexy/div[4]/div[1]/div/div[1]/div/div/div/ytd-player/div/div/div[15]/div[2]/div/div/div[2]/span/button/div").click()
+                driver.find_element_by_xpath("/html/body/ytd-app/div/ytd-page-manager/ytd-watch-flexy/div[4]/div[1]/div/div[1]/div/div/div/ytd-player/div/div/div[15]/div/div[3]/div/div[2]/span/button/div").click()
             except:
-                pass
+                try:
+                    driver.find_element_by_xpath("/html/body/ytd-app/div/ytd-page-manager/ytd-watch-flexy/div[4]/div[1]/div/div[1]/div/div/div/ytd-player/div/div/div[15]/div[2]/div/div/div[2]/span/button/div").click()
+                except:
+                    pass
 
     launch()
     search()
@@ -69,13 +83,83 @@ def youtube():
 def note():
     speak("What do you want to note down?")
     stuff = get_audio()
-    date = datetime.now()
+    date = datetime.datetime.now()
     notename = str(date).replace(":", "-") + "-note.txt"
     with open(notename, 'w') as myfile:
         myfile.write(stuff)
     subprocess.Popen(["notepad.exe", notename])
 
-speak("Hey, I'm Jarvis. What can I do for you?", "greeting.mp3")
+
+def authenticate_google():
+    creds = None
+    if os.path.exists('token.pickle'):
+        with open('token.pickle', 'rb') as token:
+            creds = pickle.load(token)
+
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                'credentials.json', SCOPES)
+            creds = flow.run_local_server(port=0)
+
+        with open('token.pickle', 'wb') as token:
+            pickle.dump(creds, token)
+
+    service = build('calendar', 'v3', credentials=creds)
+
+    return service
+
+def get_events(n, service):
+    # Call the Calendar API
+    now = datetime.datetime.utcnow().isoformat() + 'Z' # 'Z' indicates UTC time
+    print(f'Getting the upcoming {n} events')
+    events_result = service.events().list(calendarId='primary', timeMin=now,
+                                        maxResults=n, singleEvents=True,
+                                        orderBy='startTime').execute()
+    events = events_result.get('items', [])
+
+    if not events:
+        print('No upcoming events found.')
+    for event in events:
+        start = event['start'].get('dateTime', event['start'].get('date'))
+        print(start + event['summary'])
+        speak(event['summary'])
+
+service = authenticate_google()
+
+
+def weather():
+    def weather_data(query):
+    	res=requests.get('http://api.openweathermap.org/data/2.5/weather?'+query+'&APPID=b35975e18dc93725acb092f7272cc6b8&units=metric');
+    	return res.json();
+    def print_weather(result):
+    	speak("Gurgaon's temperature: {}°C ".format(result['main']['temp']))
+    	speak("Wind speed: {} m/s".format(result['wind']['speed']))
+    	speak("Description: {}".format(result['weather'][0]['description']))
+    	speak("Weather: {}".format(result['weather'][0]['main']))
+
+    def weather_main():
+        query='q='+"gurgaon";
+        w_data=weather_data(query);
+        print_weather(w_data)
+        print()
+
+    weather_main()
+
+    chromedriver = r"C:\Users\Malhaar\Downloads\chromedriver_win32\chromedriver.exe"
+    driver = webdriver.Chrome(chromedriver)
+    driver.get("https://weather.com/en-IN/weather/today/l/28.42,77.09?par=google&temp=c")
+    time.sleep(5)
+
+
+jarr = cv2.imread("img.jpg", 1)
+cv2.imshow("Jarvis", jarr)
+cv2.waitKey(3000)
+cv2.destroyAllWindows()
+
+speak("Hey, I'm Jarvis. What can I do for you?")
 
 text = get_audio()
 
@@ -87,3 +171,17 @@ if "shutdown" in text:
 
 if "note" in text:
     note()
+
+if "you there" in text:
+    speak("For you sir, always.")
+
+if "weather" in text:
+    weather()
+
+if text == "tell me about my day":
+    get_events(4, service)
+
+if "good morning" in text:
+    speak("Good morning sir")
+    weather()
+    get_events(4, service)
