@@ -1,4 +1,3 @@
-from __future__ import print_function
 import datetime
 import pickle
 import os.path
@@ -12,14 +11,9 @@ import pyttsx3
 from selenium import webdriver
 import subprocess
 import cv2
-from pprint import pprint
 import requests
 
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
-MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
-DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-DAYS_EXTENSIONS = ['rd', 'th', 'st']
-
 
 def speak(text):
     engine = pyttsx3.init()
@@ -114,7 +108,8 @@ def authenticate_google():
 def get_events(n, service):
     # Call the Calendar API
     now = datetime.datetime.utcnow().isoformat() + 'Z' # 'Z' indicates UTC time
-    print(f'Getting the upcoming {n} events')
+    print(f'Getting the upcoming events')
+    speak(f'Getting the upcoming events')
     events_result = service.events().list(calendarId='primary', timeMin=now,
                                         maxResults=n, singleEvents=True,
                                         orderBy='startTime').execute()
@@ -122,10 +117,13 @@ def get_events(n, service):
 
     if not events:
         print('No upcoming events found.')
+        speak('No upcoming events found.')
     for event in events:
         start = event['start'].get('dateTime', event['start'].get('date'))
-        print(start + event['summary'])
-        speak(event['summary'])
+        weather_split_1 = start.split("T")
+        weather_split_2 = weather_split_1[1].split("+")
+        print(f"Date: {weather_split_1[0]}; Time: {weather_split_2[0]} - {event['summary']}")
+        speak(f"{event['summary']} at {weather_split_2[0]}")
 
 service = authenticate_google()
 
@@ -138,7 +136,6 @@ def weather():
     	speak("Gurgaon's temperature: {}°C ".format(result['main']['temp']))
     	speak("Wind speed: {} m/s".format(result['wind']['speed']))
     	speak("Description: {}".format(result['weather'][0]['description']))
-    	speak("Weather: {}".format(result['weather'][0]['main']))
 
     def weather_main():
         query='q='+"gurgaon";
@@ -154,6 +151,15 @@ def weather():
     time.sleep(5)
 
 
+def google_search():
+    from googlesearch import search
+    query = text
+    chromedriver = r"C:\Users\Malhaar\Downloads\chromedriver_win32\chromedriver.exe"
+    driver = webdriver.Chrome(chromedriver)
+    for i in search(query, tld = "com", num = 1, stop = 1, pause = 2):
+        driver.get(i)
+        time.sleep(30)
+
 jarr = cv2.imread("img.jpg", 1)
 cv2.imshow("Jarvis", jarr)
 cv2.waitKey(3000)
@@ -166,22 +172,25 @@ text = get_audio()
 if "song" in text:
     youtube()
 
-if "shutdown" in text:
+elif "shutdown" in text:
     os.system("shutdown /s /t 1")
 
-if "note" in text:
+elif "note" in text:
     note()
 
-if "you there" in text:
+elif "you there" in text:
     speak("For you sir, always.")
 
-if "weather" in text:
+elif "weather" in text:
     weather()
 
-if text == "tell me about my day":
-    get_events(4, service)
+elif "tell me about my day" in text:
+    get_events(5, service)
 
-if "good morning" in text:
+elif "good morning" in text:
     speak("Good morning sir")
     weather()
     get_events(4, service)
+
+else:
+    google_search()
