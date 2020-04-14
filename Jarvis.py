@@ -160,6 +160,63 @@ def google_search():
         driver.get(i)
         time.sleep(30)
 
+
+def send_email():
+    import smtplib
+
+    user = "j4rvis2020@gmail.com"
+    pwd = "he110jarvis"
+
+    speak("Whom should I send the mail to?")
+    receiver = get_audio()
+    receiver = receiver.lower()
+
+    if receiver == "malhar" or receiver == "myself":
+        recipient = "aroramalhaar@gmail.com"
+
+    elif receiver == "mom":
+        recipient = "nikumud@gmail.com"
+
+    elif receiver == "surina":
+        recipient = "surinaarora09@gmail.com"
+
+    elif receiver == "dad":
+        recipient = "nikunj2000@yahoo.com"
+
+    elif receiver == "akanksha":
+        recipient = "aakanksha.baidya@hotmail.com"
+
+    elif receiver == "rishit":
+        recipient = "rishit@theguptafamily.com"
+
+    elif receiver == "rushil":
+        recipient = "rushil1108@gmail.com"
+
+    else:
+        recipient = receiver
+
+    subject = "Message from Mr. Malhaar Arora"
+
+    speak("What is the message?")
+    body = get_audio()
+
+    FROM = user
+    TO = recipient if isinstance(recipient, list) else [recipient]
+    SUBJECT = subject
+    TEXT = body
+
+    # Prepare actual message
+    message = """From: %s\nTo: %s\nSubject: %s\n\n%s
+    """ % (FROM, ", ".join(TO), SUBJECT, TEXT)
+    server = smtplib.SMTP("smtp.gmail.com", 587)
+    server.ehlo()
+    server.starttls()
+    server.login(user, pwd)
+    server.sendmail(FROM, TO, message)
+    server.close()
+    speak('successfully sent the mail')
+
+
 jarr = cv2.imread("img.jpg", 1)
 cv2.imshow("Jarvis", jarr)
 cv2.waitKey(3000)
@@ -191,6 +248,9 @@ elif "good morning" in text:
     speak("Good morning sir")
     weather()
     get_events(4, service)
+
+elif "mail" in text:
+    send_email()
 
 else:
     google_search()
