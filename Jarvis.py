@@ -165,7 +165,7 @@ def send_email():
     import smtplib
 
     user = "j4rvis2020@gmail.com"
-    pwd = "he110jarvis"
+    pwd = "********"
 
     speak("Whom should I send the mail to?")
     receiver = get_audio()
